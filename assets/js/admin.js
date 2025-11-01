@@ -57,7 +57,8 @@ const state = {
   orders: [],
   settings: {
     razorpayTestKey: 'rzp_test_1DP5mmOlF5G5ag',
-    razorpayLiveKey: 'rzp_live_RaPJt9LKscSrRl'
+    razorpayLiveKey: 'rzp_live_RaPJt9LKscSrRl',
+    razorpayLiveSecret: 'EfR1XM8Ost0wdiU2rq5ScLSR'
   }
 };
 
@@ -142,6 +143,9 @@ function hydrateState() {
   if (els.settingsForm) {
     els.settingsForm.razorpayTestKey.value = state.settings.razorpayTestKey || '';
     els.settingsForm.razorpayLiveKey.value = state.settings.razorpayLiveKey || '';
+    if (els.settingsForm.razorpayLiveSecret) {
+      els.settingsForm.razorpayLiveSecret.value = state.settings.razorpayLiveSecret || '';
+    }
   }
 }
 
@@ -334,7 +338,8 @@ function handleSettingsSave(event) {
   const formData = new FormData(els.settingsForm);
   state.settings = {
     razorpayTestKey: formData.get('razorpayTestKey').trim(),
-    razorpayLiveKey: formData.get('razorpayLiveKey').trim()
+    razorpayLiveKey: formData.get('razorpayLiveKey').trim(),
+    razorpayLiveSecret: formData.get('razorpayLiveSecret').trim()
   };
   utils.save(STORAGE_KEYS.settings, state.settings);
   utils.showToast('Settings saved locally.');
