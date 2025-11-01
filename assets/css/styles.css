@@ -156,6 +156,10 @@ a {
   gap: clamp(1rem, 2.5vw, 2.5rem);
 }
 
+.nav__account {
+  position: relative;
+}
+
 .nav__menu a {
   font-weight: 500;
   color: var(--text-muted);
@@ -183,6 +187,97 @@ a {
 .nav__menu a:hover::after,
 .nav__menu a:focus::after {
   transform: scaleX(1);
+}
+
+.account-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.account-button:hover,
+.account-button[aria-expanded="true"] {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.account-menu {
+  position: absolute;
+  top: calc(100% + 0.75rem);
+  right: 0;
+  background: rgba(18, 23, 34, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  padding: 1rem;
+  width: 220px;
+  display: grid;
+  gap: 0.75rem;
+  opacity: 0;
+  transform: translateY(-10px);
+  pointer-events: none;
+  transition: var(--transition);
+  z-index: 30;
+}
+
+.account-menu::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  right: 24px;
+  width: 16px;
+  height: 16px;
+  background: inherit;
+  border-top: inherit;
+  border-left: inherit;
+  transform: rotate(45deg);
+}
+
+.account-menu.open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.account-menu__header {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.account-menu__header small {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.account-menu__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.account-menu__item:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.account-menu__item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .cart-button {
@@ -815,6 +910,46 @@ a {
   height: 26px;
 }
 
+.payment-card i {
+  font-size: 1.4rem;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.upi-qr {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
+  padding: 1.2rem;
+  border-radius: var(--radius);
+  border: 1px dashed rgba(249, 115, 22, 0.35);
+  background: rgba(249, 115, 22, 0.12);
+}
+
+.upi-qr__left {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: center;
+  text-align: center;
+}
+
+.upi-qr__left img {
+  width: 200px;
+  height: 200px;
+  border-radius: var(--radius-sm);
+  background: #fff;
+  padding: 0.6rem;
+}
+
+.upi-qr__right {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.upi-qr__right .hint {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
 .toast {
   position: fixed;
   bottom: 2rem;
@@ -930,6 +1065,51 @@ a {
   font-size: 0.85rem;
 }
 
+.account-modal__body {
+  padding-top: 2.2rem;
+}
+
+.auth-form {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.account-modal__footer {
+  display: grid;
+  gap: 1rem;
+}
+
+.auth-switch {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.auth-switch button {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.auth-error {
+  color: #f87171;
+  font-size: 0.85rem;
+  min-height: 1.1rem;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 @media (max-width: 900px) {
   .nav__toggle {
     display: flex;
@@ -956,6 +1136,18 @@ a {
     opacity: 1;
     pointer-events: auto;
     transform: translateY(0);
+  }
+
+  .account-menu {
+    position: static;
+    transform: none;
+    width: 100%;
+    box-shadow: none;
+    background: rgba(18, 23, 34, 0.85);
+  }
+
+  .account-menu::before {
+    display: none;
   }
 
   .cart-button {

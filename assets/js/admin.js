@@ -47,6 +47,12 @@ const ORDER_STATUSES = [
   'Delivered'
 ];
 
+const PAYMENT_METHOD_LABELS = {
+  razorpay: 'Razorpay',
+  cod: 'COD',
+  'upi-qr': 'UPI QR'
+};
+
 const ADMIN_CREDENTIALS = {
   email: 'owner@luxethreads.in',
   password: 'Luxe@2025'
@@ -131,7 +137,7 @@ function init() {
 
 function hydrateState() {
   state.products = utils.load(STORAGE_KEYS.products, DEFAULT_PRODUCTS);
-  state.orders = utils.load(STORAGE_KEYS.orders, []);
+  state.orders = sanitizeOrders(utils.load(STORAGE_KEYS.orders, []));
   state.settings = utils.load(STORAGE_KEYS.settings, state.settings);
 
   if (!state.products.length) {
@@ -143,6 +149,26 @@ function hydrateState() {
     els.settingsForm.razorpayTestKey.value = state.settings.razorpayTestKey || '';
     els.settingsForm.razorpayLiveKey.value = state.settings.razorpayLiveKey || '';
   }
+}
+
+function sanitizeOrders(orders) {
+  if (!Array.isArray(orders)) return [];
+  return orders.map((order) => {
+    const createdAt = order?.createdAt ?? new Date().toISOString();
+    const statusIndex = Number.isFinite(order?.statusIndex) ? order.statusIndex : 0;
+    const statusUpdates = { ...(order?.statusUpdates || {}) };
+    if (!statusUpdates[ORDER_STATUSES[0]]) {
+      statusUpdates[ORDER_STATUSES[0]] = createdAt;
+    }
+    return {
+      ...order,
+      createdAt,
+      statusIndex,
+      statusUpdates,
+      payment: order?.payment || { method: 'razorpay', status: 'Pending Payment' },
+      customer: order?.customer || {}
+    };
+  });
 }
 
 function bindEvents() {
@@ -322,7 +348,9 @@ function markOrdersDelivered() {
     },
     payment: order.payment.method === 'cod'
       ? { ...order.payment, status: 'Collected' }
-      : order.payment
+      : order.payment.method === 'upi-qr'
+        ? { ...order.payment, status: 'Received' }
+        : order.payment
   }));
   utils.save(STORAGE_KEYS.orders, state.orders);
   renderOrders();
@@ -351,6 +379,12 @@ function updateOrderStatus(orderId, statusIndex) {
 
   if (statusLabel === 'Delivered' && order.payment.method === 'cod') {
     order.payment.status = 'Collected';
+  }
+  if (statusLabel === 'Delivered' && order.payment.method === 'upi-qr') {
+    order.payment.status = 'Received';
+  }
+  if (order.payment.method === 'upi-qr' && order.payment.status !== 'Received' && statusIndex > 0) {
+    order.payment.status = 'Received';
   }
 
   utils.save(STORAGE_KEYS.orders, state.orders);
@@ -423,9 +457,16 @@ function renderOrders() {
       <option value="${index}" ${index === order.statusIndex ? 'selected' : ''}>${status}</option>
     `).join('');
 
-    const paymentPill = order.payment.method === 'cod'
-      ? `<span class="pill">COD - ${order.payment.status}</span>`
-      : `<span class="pill success">Razorpay - ${order.payment.status}</span>`;
+    const paymentLabel = PAYMENT_METHOD_LABELS[order.payment.method] || PAYMENT_METHOD_LABELS.razorpay;
+    const paymentClass = order.payment.method === 'razorpay'
+      ? 'pill success'
+      : order.payment.method === 'upi-qr'
+        ? 'pill warning'
+        : 'pill';
+    const paymentPill = `<span class="${paymentClass}">${paymentLabel} - ${order.payment.status}</span>`;
+    const paymentReference = order.payment.reference
+      ? `<p class="hint">Ref: ${order.payment.reference}</p>`
+      : '';
 
     return `
       <tr>
@@ -441,7 +482,12 @@ function renderOrders() {
             ${statusOptions}
           </select>
         </td>
-        <td>${paymentPill}</td>
+        <td>
+          <div class="table-payment">
+            ${paymentPill}
+            ${paymentReference}
+          </div>
+        </td>
         <td class="table-actions">
           <button class="action-icon" data-action="advance" data-order-id="${order.id}" title="Next stage">
             <i class="fa-solid fa-forward-step"></i>
@@ -486,15 +532,20 @@ function renderPaymentSplit() {
   }
 
   const razorpayCount = state.orders.filter((order) => order.payment.method === 'razorpay').length;
-  const codCount = total - razorpayCount;
-  const razorpayPercent = Math.round((razorpayCount / total) * 100);
-  const codPercent = 100 - razorpayPercent;
+  const upiCount = state.orders.filter((order) => order.payment.method === 'upi-qr').length;
+  const codCount = total - razorpayCount - upiCount;
+
+  const toPercent = (count) => Math.round((count / total) * 100);
+  const razorpayPercent = toPercent(razorpayCount);
+  const upiPercent = toPercent(upiCount);
+  const codPercent = 100 - razorpayPercent - upiPercent;
 
   els.paymentChart.innerHTML = `
-    <div class="hint">Razorpay ${razorpayPercent}% - COD ${codPercent}%</div>
+    <div class="hint">Razorpay ${razorpayPercent}% | UPI QR ${upiPercent}% | COD ${codPercent}%</div>
     <div style="display:flex; gap:0.5rem; width:100%; height:10px; border-radius:999px; overflow:hidden; margin-top:0.8rem;">
-      <span style="flex:${razorpayCount}; background: rgba(249,115,22,0.7);"></span>
-      <span style="flex:${codCount}; background: rgba(52,211,153,0.4);"></span>
+      <span style="flex:${razorpayCount}; background: rgba(249,115,22,0.7);" aria-label="Razorpay share"></span>
+      <span style="flex:${upiCount}; background: rgba(250,204,21,0.6);" aria-label="UPI QR share"></span>
+      <span style="flex:${codCount}; background: rgba(52,211,153,0.4);" aria-label="COD share"></span>
     </div>
   `;
 }
@@ -502,14 +553,22 @@ function renderPaymentSplit() {
 function updateStats() {
   const totalOrders = state.orders.length;
   const revenue = state.orders.reduce((sum, order) => sum + (order.totals?.total || 0), 0);
-  const pendingCOD = state.orders
-    .filter((order) => order.payment.method === 'cod' && order.payment.status !== 'Collected')
+  const pendingOffline = state.orders
+    .filter((order) => {
+      if (order.payment.method === 'cod') {
+        return order.payment.status !== 'Collected';
+      }
+      if (order.payment.method === 'upi-qr') {
+        return order.payment.status !== 'Received';
+      }
+      return false;
+    })
     .reduce((sum, order) => sum + (order.totals?.total || 0), 0);
   const activeProducts = state.products.length;
 
   if (els.statOrders) els.statOrders.textContent = totalOrders;
   if (els.statRevenue) els.statRevenue.textContent = utils.formatCurrency(revenue);
-  if (els.statCOD) els.statCOD.textContent = utils.formatCurrency(pendingCOD);
+  if (els.statCOD) els.statCOD.textContent = utils.formatCurrency(pendingOffline);
   if (els.statProducts) els.statProducts.textContent = activeProducts;
 }
 
@@ -529,7 +588,7 @@ function handleExternalUpdates(event) {
     updateStats();
   }
   if (event.key === STORAGE_KEYS.orders) {
-    state.orders = utils.load(STORAGE_KEYS.orders, []);
+    state.orders = sanitizeOrders(utils.load(STORAGE_KEYS.orders, []));
     renderOrders();
     updateStats();
   }
