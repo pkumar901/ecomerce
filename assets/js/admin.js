@@ -57,7 +57,7 @@ const state = {
   orders: [],
   settings: {
     razorpayTestKey: 'rzp_test_1DP5mmOlF5G5ag',
-    razorpayLiveKey: ''
+    razorpayLiveKey: 'rzp_live_RaPJt9LKscSrRl'
   }
 };
 
