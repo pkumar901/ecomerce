@@ -1,7 +1,8 @@
 const STORAGE_KEYS = {
   products: 'luxethreads_products_v1',
   cart: 'luxethreads_cart_v1',
-  orders: 'luxethreads_orders_v1'
+  orders: 'luxethreads_orders_v1',
+  settings: 'luxethreads_settings_v1'
 };
 
 const ORDER_STATUSES = [
@@ -11,6 +12,11 @@ const ORDER_STATUSES = [
   'Out for Delivery',
   'Delivered'
 ];
+
+const DEFAULT_SETTINGS = {
+  razorpayTestKey: 'rzp_test_1DP5mmOlF5G5ag',
+  razorpayLiveKey: ''
+};
 
 const DEFAULT_PRODUCTS = [
   {
@@ -109,6 +115,7 @@ const state = {
   products: [],
   cart: [],
   orders: [],
+  settings: structuredClone(DEFAULT_SETTINGS),
   filters: {
     category: 'all',
     sort: 'featured'
@@ -136,7 +143,10 @@ const elements = {
   refreshOrders: document.getElementById('refreshOrders'),
   categoryFilter: document.getElementById('categoryFilter'),
   sortFilter: document.getElementById('sortFilter'),
-  toast: document.getElementById('toast')
+  toast: document.getElementById('toast'),
+  summarySubtotal: document.getElementById('summarySubtotal'),
+  summaryDelivery: document.getElementById('summaryDelivery'),
+  summaryTotal: document.getElementById('summaryTotal')
 };
 
 let pendingCheckout = null;
@@ -198,6 +208,7 @@ function hydrateState() {
   const storedProducts = utils.load(STORAGE_KEYS.products, DEFAULT_PRODUCTS);
   const storedCart = utils.load(STORAGE_KEYS.cart, []);
   const storedOrders = utils.load(STORAGE_KEYS.orders, []);
+  const storedSettings = utils.load(STORAGE_KEYS.settings, DEFAULT_SETTINGS);
 
   if (!storedProducts.length) {
     utils.save(STORAGE_KEYS.products, DEFAULT_PRODUCTS);
@@ -208,6 +219,10 @@ function hydrateState() {
 
   state.cart = storedCart;
   state.orders = storedOrders;
+  state.settings = {
+    ...DEFAULT_SETTINGS,
+    ...storedSettings
+  };
 
   if (elements.year) {
     elements.year.textContent = new Date().getFullYear();
@@ -299,6 +314,10 @@ function bindEvents() {
     renderProducts();
   });
 
+  elements.checkoutForm?.querySelectorAll('input[name="payment"]').forEach((radio) => {
+    radio.addEventListener('change', handlePaymentChange);
+  });
+
   window.addEventListener('storage', (event) => {
     if (event.key === STORAGE_KEYS.products) {
       state.products = utils.load(STORAGE_KEYS.products, DEFAULT_PRODUCTS);
@@ -307,6 +326,13 @@ function bindEvents() {
     if (event.key === STORAGE_KEYS.orders) {
       state.orders = utils.load(STORAGE_KEYS.orders, []);
       renderOrders();
+    }
+    if (event.key === STORAGE_KEYS.settings) {
+      const latestSettings = utils.load(STORAGE_KEYS.settings, DEFAULT_SETTINGS);
+      state.settings = {
+        ...DEFAULT_SETTINGS,
+        ...latestSettings
+      };
     }
   });
 }
@@ -470,6 +496,10 @@ function renderCart() {
 
   const { subtotal } = calculateTotals('razorpay');
   elements.cartSubtotal.textContent = utils.formatCurrency(subtotal);
+
+  if (elements.checkoutModal?.classList.contains('open')) {
+    updateCheckoutSummary(getSelectedPaymentMethod());
+  }
 }
 
 function updateCartCount() {
@@ -497,6 +527,7 @@ function openCheckout() {
   }
   toggleCart(false);
   utils.openElement(elements.checkoutModal);
+  updateCheckoutSummary(getSelectedPaymentMethod());
 }
 
 function closeAllModals() {
@@ -509,6 +540,29 @@ function calculateTotals(paymentMethod) {
   const deliveryFee = paymentMethod === 'cod' ? 40 : 0;
   const total = subtotal + deliveryFee;
   return { subtotal, deliveryFee, total };
+}
+
+function getSelectedPaymentMethod() {
+  const selected = elements.checkoutForm?.querySelector('input[name="payment"]:checked');
+  return selected?.value ?? 'razorpay';
+}
+
+function handlePaymentChange(event) {
+  if (!event.target.checked) return;
+  updateCheckoutSummary(event.target.value);
+}
+
+function updateCheckoutSummary(paymentMethod = 'razorpay') {
+  const totals = calculateTotals(paymentMethod);
+  if (elements.summarySubtotal) {
+    elements.summarySubtotal.textContent = utils.formatCurrency(totals.subtotal);
+  }
+  if (elements.summaryDelivery) {
+    elements.summaryDelivery.textContent = utils.formatCurrency(totals.deliveryFee);
+  }
+  if (elements.summaryTotal) {
+    elements.summaryTotal.textContent = utils.formatCurrency(totals.total);
+  }
 }
 
 function handleCheckoutSubmit(event) {
@@ -561,10 +615,16 @@ function initiateRazorpay(orderPayload) {
     return;
   }
 
+  const razorpayKey = state.settings.razorpayLiveKey || state.settings.razorpayTestKey || DEFAULT_SETTINGS.razorpayTestKey;
+  if (!razorpayKey) {
+    utils.showToast('Razorpay keys not configured. Update settings in the admin portal.', 'error');
+    return;
+  }
+
   pendingCheckout = orderPayload;
 
   const options = {
-    key: 'rzp_test_1DP5mmOlF5G5ag',
+    key: razorpayKey,
     amount: orderPayload.totals.total * 100,
     currency: 'INR',
     name: 'LuxeThreads',

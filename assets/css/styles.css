@@ -815,6 +815,29 @@ a {
   height: 26px;
 }
 
+.checkout-summary {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1.2rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius);
+}
+
+.checkout-summary > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.checkout-summary span {
+  color: var(--text-muted);
+}
+
+.checkout-summary strong {
+  font-size: 1.1rem;
+}
+
 .toast {
   position: fixed;
   bottom: 2rem;
