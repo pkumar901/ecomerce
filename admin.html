@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LuxeThreads Admin Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-60w3YJjQnBblEwkZ2IroY47nTnLji7c4VZkG8L8Ta11ebTiHiONsKQrlU7OX53ENUFF7fMOVRx4zRTv3gnYF0g==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<body>
+  <div class="admin-app" aria-hidden="true">
+    <aside class="sidebar" aria-label="Admin navigation">
+      <div class="sidebar__header">
+        <a href="index.html" class="brand">LuxeThreads</a>
+        <span class="badge">Owner</span>
+      </div>
+      <nav>
+        <button class="sidebar__link active" data-section="dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</button>
+        <button class="sidebar__link" data-section="products"><i class="fa-solid fa-boxes-stacked"></i> Products</button>
+        <button class="sidebar__link" data-section="orders"><i class="fa-solid fa-truck"></i> Orders</button>
+        <button class="sidebar__link" data-section="settings"><i class="fa-solid fa-gear"></i> Settings</button>
+      </nav>
+      <button id="logoutBtn" class="logout"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</button>
+    </aside>
+
+    <main class="content">
+      <section id="dashboard" class="panel active" aria-labelledby="Dashboard overview">
+        <header class="panel__header">
+          <div>
+            <p class="eyebrow">Overview</p>
+            <h1>Business Pulse</h1>
+          </div>
+          <button class="btn btn--ghost" id="syncData"><i class="fa-solid fa-rotate"></i> Sync Latest Data</button>
+        </header>
+        <div class="grid stats">
+          <article>
+            <span>Total Orders</span>
+            <strong id="statOrders">0</strong>
+            <small><i class="fa-solid fa-arrow-trend-up"></i> Today</small>
+          </article>
+          <article>
+            <span>Revenue</span>
+            <strong id="statRevenue">?0</strong>
+            <small>Gross + COD dues</small>
+          </article>
+          <article>
+            <span>Pending COD</span>
+            <strong id="statCOD">?0</strong>
+            <small>Collect on delivery</small>
+          </article>
+          <article>
+            <span>Active SKUs</span>
+            <strong id="statProducts">0</strong>
+            <small>Live on storefront</small>
+          </article>
+        </div>
+        <div class="panel__body">
+          <div class="card">
+            <h3>Order Activity</h3>
+            <ul id="recentOrders" class="timeline"></ul>
+          </div>
+          <div class="card">
+            <h3>Payment Mix</h3>
+            <div class="chart" id="paymentChart">
+              <div class="empty-state">No data yet</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="products" class="panel" aria-labelledby="Product management">
+        <header class="panel__header">
+          <div>
+            <p class="eyebrow">Catalog</p>
+            <h1>Manage Products</h1>
+          </div>
+          <div class="panel__actions">
+            <button class="btn btn--ghost" id="exportProducts"><i class="fa-solid fa-file-export"></i> Export</button>
+          </div>
+        </header>
+        <div class="panel__body">
+          <form id="productForm" class="form">
+            <h3>Add New Product</h3>
+            <div class="form-grid">
+              <label>
+                Product name
+                <input name="name" type="text" required>
+              </label>
+              <label>
+                Category
+                <select name="category" required>
+                  <option value="mens">Menswear</option>
+                  <option value="womens">Womenswear</option>
+                  <option value="accessories">Accessories</option>
+                </select>
+              </label>
+              <label>
+                Price (?)
+                <input name="price" type="number" min="0" required>
+              </label>
+              <label>
+                MRP (?)
+                <input name="originalPrice" type="number" min="0" required>
+              </label>
+              <label class="full">
+                Image URL
+                <input name="image" type="url" placeholder="https://" required>
+              </label>
+              <label>
+                Badge label
+                <input name="badge" type="text" placeholder="Bestseller" required>
+              </label>
+            </div>
+            <button class="btn btn--primary" type="submit"><i class="fa-solid fa-plus"></i> Publish Product</button>
+          </form>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Category</th>
+                  <th>Price</th>
+                  <th>Created</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="productTable"></tbody>
+            </table>
+            <div class="empty-state" id="productEmpty" hidden>
+              <i class="fa-solid fa-face-meh"></i>
+              <p>No products found. Add the first SKU.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="orders" class="panel" aria-labelledby="Orders management">
+        <header class="panel__header">
+          <div>
+            <p class="eyebrow">Logistics</p>
+            <h1>Fulfill Orders</h1>
+          </div>
+          <div class="panel__actions">
+            <button class="btn btn--ghost" id="markAllDelivered"><i class="fa-solid fa-check-double"></i> Mark delivered</button>
+          </div>
+        </header>
+        <div class="panel__body">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Order</th>
+                  <th>Placed</th>
+                  <th>Customer</th>
+                  <th>Total</th>
+                  <th>Status</th>
+                  <th>Payment</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="orderTable"></tbody>
+            </table>
+            <div class="empty-state" id="orderEmpty" hidden>
+              <i class="fa-solid fa-envelope-open-text"></i>
+              <p>No active orders yet.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="settings" class="panel" aria-labelledby="Portal settings">
+        <header class="panel__header">
+          <div>
+            <p class="eyebrow">Controls</p>
+            <h1>Portal Settings</h1>
+          </div>
+        </header>
+        <div class="panel__body">
+          <form id="settingsForm" class="form">
+            <h3>Payment Gateway Keys</h3>
+            <div class="form-grid">
+              <label class="full">
+                Razorpay Test Key
+                <input name="razorpayTestKey" type="text" placeholder="rzp_test_..." value="rzp_test_1DP5mmOlF5G5ag">
+              </label>
+              <label class="full">
+                Razorpay Live Key
+                <input name="razorpayLiveKey" type="text" placeholder="rzp_live_...">
+              </label>
+            </div>
+            <p class="hint"><i class="fa-solid fa-circle-info"></i> Keys are stored locally for demo purposes. Replace with your own before going live.</p>
+            <button class="btn btn--primary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save Configuration</button>
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="login" id="loginOverlay" aria-hidden="false">
+    <form id="adminLoginForm" class="login__panel" autocomplete="off">
+      <div class="login__brand">
+        <span class="logo">LT</span>
+        <div>
+          <strong>LuxeThreads Admin</strong>
+          <p>Owner credentials only</p>
+        </div>
+      </div>
+      <label>
+        Email
+        <input type="email" name="email" placeholder="owner@luxethreads.in" required>
+      </label>
+      <label>
+        Passphrase
+        <input type="password" name="password" placeholder="????????" required>
+      </label>
+      <button class="btn btn--primary" type="submit">Unlock Portal</button>
+      <p class="hint">Demo credentials: owner@luxethreads.in ? Luxe@2025</p>
+    </form>
+  </div>
+
+  <div class="toast" id="adminToast" role="status"></div>
+
+  <script type="module" src="assets/js/admin.js"></script>
+</body>
+</html>

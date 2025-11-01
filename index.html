@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LuxeThreads | Premium Fashion Marketplace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-60w3YJjQnBblEwkZ2IroY47nTnLji7c4VZkG8L8Ta11ebTiHiONsKQrlU7OX53ENUFF7fMOVRx4zRTv3gnYF0g==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+  <header class="hero">
+    <nav class="nav">
+      <a href="#home" class="brand">LuxeThreads</a>
+      <button class="nav__toggle" id="navToggle" aria-label="Toggle navigation">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <ul class="nav__menu" id="navMenu">
+        <li><a href="#catalog">Shop</a></li>
+        <li><a href="#my-orders">My Orders</a></li>
+        <li><a href="#features">Why Us</a></li>
+        <li><a href="#support">Support</a></li>
+        <li>
+          <button class="cart-button" id="openCart" aria-label="Open cart">
+            <i class="fa-solid fa-bag-shopping"></i>
+            <span class="cart-count" id="cartCount">0</span>
+          </button>
+        </li>
+      </ul>
+    </nav>
+
+    <div class="hero__content" id="home">
+      <div>
+        <p class="eyebrow">New Collection 2025</p>
+        <h1>Where Luxury Meets Everyday Comfort</h1>
+        <p class="subtitle">Discover curated premium apparel with sustainable fabrics, transparent pricing, and doorstep delivery.</p>
+        <div class="hero__actions">
+          <a href="#catalog" class="btn btn--primary">Shop the Drop</a>
+          <a href="#my-orders" class="btn btn--ghost">Track My Order</a>
+        </div>
+        <ul class="metrics">
+          <li>
+            <strong>48h</strong>
+            <span>Express Dispatch</span>
+          </li>
+          <li>
+            <strong>4.8?</strong>
+            <span>Customer Rating</span>
+          </li>
+          <li>
+            <strong>?0</strong>
+            <span>Free Returns</span>
+          </li>
+        </ul>
+      </div>
+      <div class="hero__visual">
+        <img src="https://images.pexels.com/photos/6311653/pexels-photo-6311653.jpeg" alt="Model wearing LuxeThreads outfit">
+        <div class="floating-card" aria-hidden="true">
+          <p>Powered by Razorpay</p>
+          <span>UPI ? Cards ? Wallets</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section id="features" class="section features">
+      <div class="container">
+        <article>
+          <i class="fa-solid fa-shield-heart"></i>
+          <h3>Premium Quality</h3>
+          <p>Handpicked designers, ethically produced fabrics, and rigorous quality assurance.</p>
+        </article>
+        <article>
+          <i class="fa-solid fa-indian-rupee-sign"></i>
+          <h3>Flexible Payments</h3>
+          <p>Instant UPI checkout via Razorpay, all major cards, wallets, and cash on delivery.</p>
+        </article>
+        <article>
+          <i class="fa-solid fa-location-dot"></i>
+          <h3>Real-Time Tracking</h3>
+          <p>Know exactly where your order is, from dispatch to delivery, with live updates.</p>
+        </article>
+        <article>
+          <i class="fa-solid fa-headset"></i>
+          <h3>Concierge Support</h3>
+          <p>Dedicated stylists and support teams to ensure every order feels bespoke.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="catalog" class="section catalog">
+      <div class="container">
+        <header class="section__header">
+          <div>
+            <p class="eyebrow">Shop</p>
+            <h2>Signature Collections</h2>
+            <p class="subtitle">Curated edits for work, weekend, and wanderlust. Add pieces to your cart and checkout in minutes.</p>
+          </div>
+          <div class="filters">
+            <label>
+              <span>Category</span>
+              <select id="categoryFilter">
+                <option value="all">All</option>
+                <option value="mens">Menswear</option>
+                <option value="womens">Womenswear</option>
+                <option value="accessories">Accessories</option>
+              </select>
+            </label>
+            <label>
+              <span>Sort</span>
+              <select id="sortFilter">
+                <option value="featured">Featured</option>
+                <option value="price-asc">Price: Low to High</option>
+                <option value="price-desc">Price: High to Low</option>
+                <option value="newest">Newest</option>
+              </select>
+            </label>
+          </div>
+        </header>
+
+        <div class="product-grid" id="productGrid" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="section experience">
+      <div class="container">
+        <div class="experience__card">
+          <h3>Ultra-fast Checkout</h3>
+          <p>Choose Razorpay UPI for lightning checkout or opt for cash on delivery at your convenience. Every transaction is secured with 256-bit encryption.</p>
+          <ul>
+            <li><i class="fa-solid fa-circle-check"></i> One-tap repeat orders</li>
+            <li><i class="fa-solid fa-circle-check"></i> Split payments with Razorpay PayLater</li>
+            <li><i class="fa-solid fa-circle-check"></i> Smart fraud detection</li>
+          </ul>
+        </div>
+        <div class="experience__image">
+          <img src="https://images.pexels.com/photos/6669541/pexels-photo-6669541.jpeg" alt="Checkout experience">
+        </div>
+      </div>
+    </section>
+
+    <section id="my-orders" class="section orders">
+      <div class="container">
+        <header class="section__header">
+          <div>
+            <p class="eyebrow">My Orders</p>
+            <h2>Track & Manage</h2>
+            <p class="subtitle">View your recent purchases, download invoices, and follow live tracking.</p>
+          </div>
+          <button class="btn btn--ghost" id="refreshOrders"><i class="fa-solid fa-rotate"></i> Refresh</button>
+        </header>
+        <div id="ordersList" class="orders__list" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section id="support" class="section support">
+      <div class="container">
+        <div>
+          <h2>Need a bespoke experience?</h2>
+          <p>Start a conversation with our personal stylists or schedule a private fitting.</p>
+          <div class="support__cta">
+            <a href="mailto:concierge@luxethreads.in" class="btn btn--primary">Email concierge</a>
+            <a href="tel:+919555501234" class="btn btn--ghost">Call +91 95555 01234</a>
+          </div>
+        </div>
+        <div class="support__info">
+          <p><i class="fa-solid fa-clock"></i> Live 7 days a week, 9am ? 10pm IST</p>
+          <p><i class="fa-solid fa-store"></i> Flagship: 64, Soho Lane, Bengaluru</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div>
+        <a href="#home" class="brand">LuxeThreads</a>
+        <p>Premium fashion store crafted for discerning shoppers.</p>
+      </div>
+      <div class="footer__links">
+        <a href="#catalog">Collections</a>
+        <a href="#support">Concierge</a>
+        <a href="admin.html">Admin Login</a>
+      </div>
+      <div class="footer__legal">
+        <p>? <span id="year"></span> LuxeThreads. All rights reserved.</p>
+        <p>Made with <i class="fa-solid fa-heart"></i> in India.</p>
+      </div>
+    </div>
+  </footer>
+
+  <aside class="cart" id="cartDrawer" aria-hidden="true">
+    <div class="cart__header">
+      <h3>Your Cart</h3>
+      <button class="icon-button" id="closeCart" aria-label="Close cart"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="cart__body" id="cartItems"></div>
+    <div class="cart__footer">
+      <div class="cart__summary">
+        <span>Subtotal</span>
+        <strong id="cartSubtotal">?0</strong>
+      </div>
+      <div class="cart__actions">
+        <button class="btn btn--ghost" id="clearCart">Clear Cart</button>
+        <button class="btn btn--primary" id="checkoutBtn">Checkout</button>
+      </div>
+      <p class="cart__note"><i class="fa-solid fa-lock"></i> Secure checkout powered by Razorpay. COD is available across India.</p>
+    </div>
+  </aside>
+
+  <div class="modal" id="checkoutModal" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="modal__dialog" role="document">
+      <header class="modal__header">
+        <h3>Checkout</h3>
+        <button class="icon-button" data-close-modal aria-label="Close checkout"><i class="fa-solid fa-xmark"></i></button>
+      </header>
+      <form id="checkoutForm" class="modal__body">
+        <div class="form-grid">
+          <label>
+            Full name
+            <input type="text" name="name" required>
+          </label>
+          <label>
+            Email
+            <input type="email" name="email" required>
+          </label>
+          <label>
+            Phone
+            <input type="tel" name="phone" pattern="[0-9]{10}" required>
+          </label>
+          <label class="full">
+            Delivery address
+            <textarea name="address" rows="3" required></textarea>
+          </label>
+        </div>
+
+        <fieldset class="payment-options">
+          <legend>Payment method</legend>
+          <label class="payment-card">
+            <input type="radio" name="payment" value="razorpay" checked>
+            <span>
+              <strong>Razorpay UPI / Cards</strong>
+              <small>Instant confirmation with UPI, cards, wallets, net banking.</small>
+            </span>
+            <img src="https://i.postimg.cc/63K4m8Bn/razorpay-logo.png" alt="Razorpay" />
+          </label>
+          <label class="payment-card">
+            <input type="radio" name="payment" value="cod">
+            <span>
+              <strong>Cash on Delivery</strong>
+              <small>Pay with cash or UPI on delivery. ?40 convenience fee.</small>
+            </span>
+            <i class="fa-solid fa-people-carry-box"></i>
+          </label>
+        </fieldset>
+
+        <div class="modal__footer">
+          <button type="button" class="btn btn--ghost" data-close-modal>Cancel</button>
+          <button type="submit" class="btn btn--primary">Place Order</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="trackingModal" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="modal__dialog" role="document">
+      <header class="modal__header">
+        <h3>Track Order</h3>
+        <button class="icon-button" data-close-modal aria-label="Close tracking"><i class="fa-solid fa-xmark"></i></button>
+      </header>
+      <div class="modal__body" id="trackingContent"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="https://checkout.razorpay.com/v1/checkout.js" async></script>
+  <script type="module" src="assets/js/app.js"></script>
+</body>
+</html>
