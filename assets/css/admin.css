@@ -340,6 +340,17 @@ tbody tr:last-child td {
   border-color: rgba(52, 211, 153, 0.6);
 }
 
+.pill.warning {
+  color: #facc15;
+  border-color: rgba(250, 204, 21, 0.5);
+}
+
+.table-payment {
+  display: grid;
+  gap: 0.4rem;
+  align-items: flex-start;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;

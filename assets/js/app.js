@@ -1,7 +1,10 @@
 const STORAGE_KEYS = {
   products: 'luxethreads_products_v1',
   cart: 'luxethreads_cart_v1',
-  orders: 'luxethreads_orders_v1'
+  orders: 'luxethreads_orders_v1',
+  users: 'luxethreads_users_v1',
+  session: 'luxethreads_session_v1',
+  settings: 'luxethreads_settings_v1'
 };
 
 const ORDER_STATUSES = [
@@ -105,10 +108,20 @@ const DEFAULT_PRODUCTS = [
   }
 ];
 
+const DEFAULT_SETTINGS = {
+  razorpayTestKey: 'rzp_test_1DP5mmOlF5G5ag',
+  razorpayLiveKey: ''
+};
+
+const UPI_ID = 'luxethreads@upi';
+
 const state = {
   products: [],
   cart: [],
   orders: [],
+  customers: [],
+  user: null,
+  settings: structuredClone(DEFAULT_SETTINGS),
   filters: {
     category: 'all',
     sort: 'featured'
@@ -136,10 +149,33 @@ const elements = {
   refreshOrders: document.getElementById('refreshOrders'),
   categoryFilter: document.getElementById('categoryFilter'),
   sortFilter: document.getElementById('sortFilter'),
-  toast: document.getElementById('toast')
+  toast: document.getElementById('toast'),
+  accountButton: document.getElementById('accountButton'),
+  accountLabel: document.getElementById('accountLabel'),
+  accountMenu: document.getElementById('accountMenu'),
+  accountGreeting: document.getElementById('accountGreeting'),
+  accountEmail: document.getElementById('accountEmail'),
+  accountOrders: document.getElementById('accountOrders'),
+  accountLogout: document.getElementById('accountLogout'),
+  accountModal: document.getElementById('accountModal'),
+  authForm: document.getElementById('authForm'),
+  authMode: document.getElementById('authMode'),
+  authNameField: document.getElementById('authNameField'),
+  authTitle: document.getElementById('authTitle'),
+  authSubmit: document.getElementById('authSubmit'),
+  authSwitch: document.getElementById('authSwitch'),
+  authSwitchLabel: document.getElementById('authSwitchLabel'),
+  toggleAuthMode: document.getElementById('toggleAuthMode'),
+  authError: document.getElementById('authError'),
+  ownerPortalLink: document.getElementById('ownerPortalLink'),
+  upiQRSection: document.getElementById('upiQRSection'),
+  upiReference: document.getElementById('upiReference'),
+  upiQRCode: document.getElementById('upiQRCode'),
+  upiIdLabel: document.getElementById('upiId')
 };
 
 let pendingCheckout = null;
+let accountMenuOpen = false;
 
 const utils = {
   load(key, fallback) {
@@ -188,6 +224,29 @@ const utils = {
   }
 };
 
+const auth = {
+  normaliseEmail(value) {
+    return value.trim().toLowerCase();
+  },
+  hash(password) {
+    try {
+      const encoder = new TextEncoder();
+      const bytes = encoder.encode(password);
+      let binary = '';
+      bytes.forEach((byte) => {
+        binary += String.fromCharCode(byte);
+      });
+      return btoa(binary);
+    } catch (error) {
+      console.error('Failed to hash password', error);
+      return btoa(password);
+    }
+  },
+  compare(rawPassword, hashedPassword) {
+    return auth.hash(rawPassword) === hashedPassword;
+  }
+};
+
 function init() {
   hydrateState();
   bindEvents();
@@ -198,6 +257,9 @@ function hydrateState() {
   const storedProducts = utils.load(STORAGE_KEYS.products, DEFAULT_PRODUCTS);
   const storedCart = utils.load(STORAGE_KEYS.cart, []);
   const storedOrders = utils.load(STORAGE_KEYS.orders, []);
+  const storedCustomers = utils.load(STORAGE_KEYS.users, []);
+  const storedSettings = utils.load(STORAGE_KEYS.settings, DEFAULT_SETTINGS);
+  const storedSession = utils.load(STORAGE_KEYS.session, null);
 
   if (!storedProducts.length) {
     utils.save(STORAGE_KEYS.products, DEFAULT_PRODUCTS);
@@ -206,12 +268,73 @@ function hydrateState() {
     state.products = storedProducts;
   }
 
-  state.cart = storedCart;
-  state.orders = storedOrders;
+  state.cart = Array.isArray(storedCart) ? storedCart : [];
+  state.orders = sanitizeOrders(storedOrders);
+  state.customers = Array.isArray(storedCustomers) ? storedCustomers : [];
+  state.settings = { ...DEFAULT_SETTINGS, ...(storedSettings || {}) };
+
+  const validSession = validateSession(storedSession);
+  state.user = validSession;
+
+  if (!validSession) {
+    persistSession(null);
+  }
 
   if (elements.year) {
     elements.year.textContent = new Date().getFullYear();
   }
+
+  if (elements.upiIdLabel) {
+    elements.upiIdLabel.textContent = UPI_ID;
+  }
+  if (elements.upiQRCode) {
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(`upi://pay?pa=${UPI_ID}&pn=LuxeThreads&cu=INR`)}`;
+    elements.upiQRCode.src = qrUrl;
+  }
+}
+
+function sanitizeOrders(orders) {
+  if (!Array.isArray(orders)) return [];
+  return orders.map((order) => {
+    const createdAt = order?.createdAt ?? new Date().toISOString();
+    const statusIndex = Number.isFinite(order?.statusIndex) ? order.statusIndex : 0;
+    const statusUpdates = { ...(order?.statusUpdates || {}) };
+    if (!statusUpdates[ORDER_STATUSES[0]]) {
+      statusUpdates[ORDER_STATUSES[0]] = createdAt;
+    }
+    return {
+      ...order,
+      createdAt,
+      statusIndex,
+      statusUpdates,
+      customer: order?.customer || {},
+      payment: order?.payment || { method: 'razorpay', status: 'Pending Payment' }
+    };
+  });
+}
+
+function validateSession(session) {
+  if (!session?.email) return null;
+  const email = auth.normaliseEmail(session.email);
+  const user = state.customers.find((customer) => auth.normaliseEmail(customer.email) === email || customer.id === session.id);
+  if (!user) return null;
+  return { id: user.id, name: user.name, email: user.email };
+}
+
+function persistSession(user) {
+  if (!user) {
+    localStorage.removeItem(STORAGE_KEYS.session);
+    return;
+  }
+  utils.save(STORAGE_KEYS.session, {
+    id: user.id,
+    name: user.name,
+    email: user.email
+  });
+}
+
+function persistCustomers() {
+  utils.save(STORAGE_KEYS.users, state.customers);
 }
 
 function bindEvents() {
@@ -222,7 +345,14 @@ function bindEvents() {
   elements.navMenu?.addEventListener('click', (event) => {
     if (event.target.tagName === 'A') {
       elements.navMenu.classList.remove('open');
+      closeAccountMenu();
     }
+  });
+
+  elements.accountButton?.addEventListener('click', handleAccountButtonClick);
+  elements.accountOrders?.addEventListener('click', handleAccountOrdersClick);
+  elements.accountLogout?.addEventListener('click', () => {
+    signOut();
   });
 
   elements.openCart?.addEventListener('click', () => toggleCart(true));
@@ -232,8 +362,15 @@ function bindEvents() {
     if (event.key === 'Escape') {
       toggleCart(false);
       closeAllModals();
+      closeAccountMenu();
+    }
+    if (event.altKey && event.shiftKey && event.code === 'KeyA') {
+      event.preventDefault();
+      elements.ownerPortalLink?.click();
     }
   });
+
+  document.addEventListener('click', handleDocumentClick);
 
   elements.productGrid?.addEventListener('click', (event) => {
     const button = event.target.closest('[data-add-to-cart]');
@@ -275,6 +412,11 @@ function bindEvents() {
   });
 
   elements.checkoutForm?.addEventListener('submit', handleCheckoutSubmit);
+  elements.checkoutForm?.addEventListener('change', handlePaymentOptionChange);
+  const initialPayment = elements.checkoutForm?.querySelector('input[name="payment"]:checked');
+  if (initialPayment) {
+    handlePaymentOptionChange({ target: initialPayment });
+  }
 
   elements.ordersList?.addEventListener('click', (event) => {
     const button = event.target.closest('[data-track-order]');
@@ -284,10 +426,13 @@ function bindEvents() {
   });
 
   elements.refreshOrders?.addEventListener('click', () => {
-    state.orders = utils.load(STORAGE_KEYS.orders, []);
+    state.orders = sanitizeOrders(utils.load(STORAGE_KEYS.orders, []));
     renderOrders();
     utils.showToast('Orders refreshed.');
   });
+
+  elements.toggleAuthMode?.addEventListener('click', toggleAuthModeHandler);
+  elements.authForm?.addEventListener('submit', handleAuthSubmit);
 
   elements.categoryFilter?.addEventListener('change', (event) => {
     state.filters.category = event.target.value;
@@ -305,8 +450,24 @@ function bindEvents() {
       renderProducts();
     }
     if (event.key === STORAGE_KEYS.orders) {
-      state.orders = utils.load(STORAGE_KEYS.orders, []);
+      state.orders = sanitizeOrders(utils.load(STORAGE_KEYS.orders, []));
       renderOrders();
+    }
+    if (event.key === STORAGE_KEYS.users) {
+      state.customers = utils.load(STORAGE_KEYS.users, []);
+      const current = validateSession(utils.load(STORAGE_KEYS.session, null));
+      state.user = current;
+      renderAccountUI();
+      renderOrders();
+    }
+    if (event.key === STORAGE_KEYS.session) {
+      const current = validateSession(utils.load(STORAGE_KEYS.session, null));
+      state.user = current;
+      renderAccountUI();
+      renderOrders();
+    }
+    if (event.key === STORAGE_KEYS.settings) {
+      state.settings = { ...DEFAULT_SETTINGS, ...utils.load(STORAGE_KEYS.settings, DEFAULT_SETTINGS) };
     }
   });
 }
@@ -315,6 +476,7 @@ function renderAll() {
   renderProducts();
   renderCart();
   renderOrders();
+  renderAccountUI();
 }
 
 function renderProducts() {
@@ -479,6 +641,241 @@ function updateCartCount() {
   }
 }
 
+function handleAccountButtonClick(event) {
+  event?.preventDefault?.();
+  if (state.user) {
+    toggleAccountMenu();
+  } else {
+    openAccountModal('signin');
+  }
+}
+
+function handleAccountOrdersClick(event) {
+  event?.preventDefault?.();
+  closeAccountMenu();
+  document.getElementById('my-orders')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function handleDocumentClick(event) {
+  if (!accountMenuOpen) return;
+  if (elements.accountMenu?.contains(event.target) || elements.accountButton?.contains(event.target)) {
+    return;
+  }
+  closeAccountMenu();
+}
+
+function toggleAccountMenu() {
+  if (!state.user) return;
+  if (accountMenuOpen) {
+    closeAccountMenu();
+  } else {
+    openAccountMenu();
+  }
+}
+
+function openAccountMenu() {
+  if (!state.user || !elements.accountMenu) return;
+  accountMenuOpen = true;
+  elements.accountMenu.classList.add('open');
+  elements.accountMenu.setAttribute('aria-hidden', 'false');
+  elements.accountButton?.setAttribute('aria-expanded', 'true');
+}
+
+function closeAccountMenu() {
+  accountMenuOpen = false;
+  elements.accountMenu?.classList.remove('open');
+  elements.accountMenu?.setAttribute('aria-hidden', 'true');
+  elements.accountButton?.setAttribute('aria-expanded', 'false');
+}
+
+function openAccountModal(mode = 'signin') {
+  setAuthMode(mode);
+  elements.authForm?.reset();
+  elements.authError.textContent = '';
+  utils.openElement(elements.accountModal);
+  const focusTarget = mode === 'signup'
+    ? elements.authNameField?.querySelector('input')
+    : document.getElementById('authEmail');
+  focusTarget?.focus({ preventScroll: true });
+}
+
+function setAuthMode(mode) {
+  const normalised = mode === 'signup' ? 'signup' : 'signin';
+  if (elements.authMode) {
+    elements.authMode.value = normalised;
+  }
+  if (elements.authTitle) {
+    elements.authTitle.textContent = normalised === 'signup' ? 'Create account' : 'Sign in';
+  }
+  if (elements.authSubmit) {
+    elements.authSubmit.textContent = normalised === 'signup' ? 'Create account' : 'Sign in';
+  }
+  if (elements.authNameField) {
+    elements.authNameField.hidden = normalised !== 'signup';
+    const nameInput = elements.authNameField.querySelector('input');
+    if (nameInput) {
+      nameInput.required = normalised === 'signup';
+    }
+  }
+  if (elements.authSwitchLabel) {
+    elements.authSwitchLabel.textContent = normalised === 'signup'
+      ? 'Already part of LuxeThreads?'
+      : 'New to LuxeThreads?';
+  }
+  if (elements.toggleAuthMode) {
+    elements.toggleAuthMode.textContent = normalised === 'signup' ? 'Sign in' : 'Create an account';
+  }
+}
+
+function toggleAuthModeHandler(event) {
+  event?.preventDefault?.();
+  const currentMode = elements.authMode?.value === 'signup' ? 'signup' : 'signin';
+  setAuthMode(currentMode === 'signup' ? 'signin' : 'signup');
+  elements.authError.textContent = '';
+  if (elements.authMode?.value === 'signup') {
+    elements.authNameField?.querySelector('input')?.focus({ preventScroll: true });
+  } else {
+    document.getElementById('authEmail')?.focus({ preventScroll: true });
+  }
+}
+
+function handleAuthSubmit(event) {
+  event.preventDefault();
+  if (!elements.authForm) return;
+
+  const formData = new FormData(elements.authForm);
+  const mode = formData.get('mode') === 'signup' ? 'signup' : 'signin';
+  const emailRaw = (formData.get('email') || '').toString();
+  const passwordRaw = (formData.get('password') || '').toString();
+  const nameRaw = (formData.get('fullName') || '').toString();
+
+  const email = auth.normaliseEmail(emailRaw);
+  const password = passwordRaw.trim();
+  const name = nameRaw.trim();
+
+  if (!email || !password) {
+    elements.authError.textContent = 'Email and password are required.';
+    return;
+  }
+
+  if (mode === 'signup') {
+    if (!name) {
+      elements.authError.textContent = 'Please share your full name to personalise your experience.';
+      return;
+    }
+    if (state.customers.some((customer) => auth.normaliseEmail(customer.email) === email)) {
+      elements.authError.textContent = 'This email is already registered. Try signing in instead.';
+      return;
+    }
+    const customer = {
+      id: utils.randomId('CUS'),
+      name,
+      email,
+      password: auth.hash(password),
+      createdAt: new Date().toISOString()
+    };
+    state.customers.push(customer);
+    persistCustomers();
+    completeSignIn(customer, true);
+    utils.showToast('Account created successfully. Welcome aboard!');
+  } else {
+    const customer = state.customers.find((entry) => auth.normaliseEmail(entry.email) === email);
+    if (!customer || !auth.compare(password, customer.password)) {
+      elements.authError.textContent = 'Incorrect email or password. Please try again.';
+      return;
+    }
+    completeSignIn(customer, false);
+    utils.showToast(`Welcome back, ${customer.name.split(' ')[0] || customer.name}.`);
+  }
+
+  elements.authForm.reset();
+  elements.authError.textContent = '';
+  closeAllModals();
+}
+
+function completeSignIn(customer, createdNow) {
+  state.user = {
+    id: customer.id,
+    name: customer.name,
+    email: customer.email
+  };
+  persistSession(state.user);
+  renderAccountUI();
+  renderOrders();
+  if (createdNow) {
+    document.getElementById('my-orders')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function signOut() {
+  if (!state.user) return;
+  persistSession(null);
+  state.user = null;
+  closeAccountMenu();
+  renderAccountUI();
+  renderOrders();
+  utils.showToast('Signed out successfully. See you soon!');
+}
+
+function renderAccountUI() {
+  const isLoggedIn = Boolean(state.user);
+  if (elements.accountLabel) {
+    const fallbackLabel = isLoggedIn ? (state.user.name.split(' ')[0] || 'Account') : 'Sign In';
+    elements.accountLabel.textContent = fallbackLabel;
+  }
+  if (!isLoggedIn) {
+    closeAccountMenu();
+  } else if (accountMenuOpen) {
+    openAccountMenu();
+  }
+  if (elements.accountGreeting) {
+    elements.accountGreeting.textContent = isLoggedIn
+      ? `Hello, ${state.user.name.split(' ')[0] || state.user.name}`
+      : 'Welcome guest';
+  }
+  if (elements.accountEmail) {
+    elements.accountEmail.textContent = isLoggedIn ? state.user.email : '';
+  }
+  if (elements.accountLogout) {
+    elements.accountLogout.toggleAttribute('disabled', !isLoggedIn);
+  }
+  if (elements.accountOrders) {
+    elements.accountOrders.toggleAttribute('disabled', !isLoggedIn);
+  }
+  if (elements.accountButton) {
+    elements.accountButton.setAttribute('aria-haspopup', isLoggedIn ? 'true' : 'false');
+    elements.accountButton.setAttribute('aria-expanded', isLoggedIn && accountMenuOpen ? 'true' : 'false');
+  }
+}
+
+function ensureAuthenticated() {
+  if (state.user) return true;
+  utils.showToast('Please sign in to continue.', 'error');
+  openAccountModal('signin');
+  return false;
+}
+
+function handlePaymentOptionChange(event) {
+  if (event.target.name !== 'payment') return;
+  const selected = event.target.value;
+  const isUPI = selected === 'upi-qr';
+  if (elements.upiQRSection) {
+    if (isUPI) {
+      elements.upiQRSection.hidden = false;
+    } else {
+      elements.upiQRSection.hidden = true;
+    }
+  }
+  if (elements.upiReference) {
+    if (isUPI) {
+      elements.upiReference.setAttribute('required', 'required');
+    } else {
+      elements.upiReference.removeAttribute('required');
+      elements.upiReference.value = '';
+    }
+  }
+}
+
 function toggleCart(open) {
   if (!elements.cartDrawer) return;
   if (open) {
@@ -495,6 +892,9 @@ function openCheckout() {
     utils.showToast('Add items to your cart before checking out.', 'error');
     return;
   }
+  if (!ensureAuthenticated()) {
+    return;
+  }
   toggleCart(false);
   utils.openElement(elements.checkoutModal);
 }
@@ -502,6 +902,7 @@ function openCheckout() {
 function closeAllModals() {
   utils.closeElement(elements.checkoutModal);
   utils.closeElement(elements.trackingModal);
+  utils.closeElement(elements.accountModal);
 }
 
 function calculateTotals(paymentMethod) {
@@ -517,6 +918,9 @@ function handleCheckoutSubmit(event) {
     utils.showToast('Your cart is empty.', 'error');
     return;
   }
+  if (!ensureAuthenticated()) {
+    return;
+  }
 
   const formData = new FormData(elements.checkoutForm);
   const customer = {
@@ -526,31 +930,51 @@ function handleCheckoutSubmit(event) {
     address: formData.get('address').trim()
   };
   const paymentMethod = formData.get('payment');
+  const upiReference = (formData.get('upiReference') || '').toString().trim();
 
   if (!customer.name || !customer.email || !customer.phone || !customer.address) {
     utils.showToast('Please fill all required fields.', 'error');
     return;
   }
 
+  if (paymentMethod === 'upi-qr' && !upiReference) {
+    utils.showToast('Enter the UPI transaction reference to continue.', 'error');
+    elements.upiReference?.focus({ preventScroll: true });
+    return;
+  }
+
   const totals = calculateTotals(paymentMethod);
+  const now = new Date().toISOString();
   const orderPayload = {
     id: utils.randomId('ORD'),
     items: structuredClone(state.cart),
-    createdAt: new Date().toISOString(),
+    createdAt: now,
     customer,
+    customerId: state.user?.id || null,
     totals,
     payment: {
       method: paymentMethod,
-      status: paymentMethod === 'cod' ? 'Pending COD' : 'Pending Payment'
+      status: paymentMethod === 'cod'
+        ? 'Pending COD'
+        : paymentMethod === 'upi-qr'
+          ? 'Awaiting Confirmation'
+          : 'Pending Payment',
+      reference: paymentMethod === 'upi-qr' ? upiReference : undefined
     },
-    statusIndex: 0
+    statusIndex: 0,
+    statusUpdates: {
+      [ORDER_STATUSES[0]]: now
+    }
   };
 
   if (paymentMethod === 'razorpay') {
     initiateRazorpay(orderPayload);
   } else {
     finalizeOrder(orderPayload);
-    utils.showToast('Order placed with Cash on Delivery.');
+    const message = paymentMethod === 'upi-qr'
+      ? 'Thank you! We will verify your UPI payment and share updates shortly.'
+      : 'Order placed with Cash on Delivery.';
+    utils.showToast(message);
     closeAllModals();
   }
 }
@@ -562,9 +986,10 @@ function initiateRazorpay(orderPayload) {
   }
 
   pendingCheckout = orderPayload;
+  const razorpayKey = state.settings.razorpayLiveKey || state.settings.razorpayTestKey || DEFAULT_SETTINGS.razorpayTestKey;
 
   const options = {
-    key: 'rzp_test_1DP5mmOlF5G5ag',
+    key: razorpayKey,
     amount: orderPayload.totals.total * 100,
     currency: 'INR',
     name: 'LuxeThreads',
@@ -572,6 +997,7 @@ function initiateRazorpay(orderPayload) {
     image: 'https://i.postimg.cc/fTmVyrnR/Black-White-Minimalist-Business-Logo-removebg-preview.png',
     handler: function handler(response) {
       if (!pendingCheckout) return;
+      const timestamp = new Date().toISOString();
       pendingCheckout.payment = {
         method: 'razorpay',
         status: 'Paid',
@@ -579,6 +1005,7 @@ function initiateRazorpay(orderPayload) {
         signature: response.razorpay_signature
       };
       pendingCheckout.statusIndex = 1;
+      pendingCheckout.statusUpdates[ORDER_STATUSES[1]] = timestamp;
       finalizeOrder(pendingCheckout);
       pendingCheckout = null;
       closeAllModals();
@@ -606,7 +1033,16 @@ function initiateRazorpay(orderPayload) {
 }
 
 function finalizeOrder(orderPayload) {
-  state.orders.unshift(orderPayload);
+  const normalized = {
+    ...orderPayload,
+    statusUpdates: {
+      ...orderPayload.statusUpdates,
+      [ORDER_STATUSES[orderPayload.statusIndex] ?? ORDER_STATUSES[0]]:
+        orderPayload.statusUpdates?.[ORDER_STATUSES[orderPayload.statusIndex]] || new Date().toISOString()
+    }
+  };
+
+  state.orders.unshift(normalized);
   utils.save(STORAGE_KEYS.orders, state.orders);
 
   state.cart = [];
@@ -614,26 +1050,55 @@ function finalizeOrder(orderPayload) {
   renderCart();
   renderOrders();
   elements.checkoutForm?.reset();
+  if (elements.upiQRSection) {
+    elements.upiQRSection.hidden = true;
+  }
+  if (elements.upiReference) {
+    elements.upiReference.removeAttribute('required');
+    elements.upiReference.value = '';
+  }
 }
 
 function renderOrders() {
   if (!elements.ordersList) return;
 
-  if (!state.orders.length) {
+  if (!state.user) {
+    elements.ordersList.innerHTML = `
+      <div class="empty-state">
+        <i class="fa-solid fa-user-lock"></i>
+        <p>Sign in to view and track your LuxeThreads orders.</p>
+        <button class="btn btn--primary" id="ordersLoginTrigger" type="button"><i class="fa-solid fa-right-to-bracket"></i> Sign in</button>
+      </div>
+    `;
+    document.getElementById('ordersLoginTrigger')?.addEventListener('click', () => openAccountModal('signin'));
+    return;
+  }
+
+  const userOrders = state.orders.filter((order) => {
+    const emailMatch = auth.normaliseEmail(order.customer?.email || '') === auth.normaliseEmail(state.user.email);
+    return order.customerId === state.user.id || emailMatch;
+  });
+
+  if (!userOrders.length) {
     elements.ordersList.innerHTML = `
       <div class="empty-state">
         <i class="fa-solid fa-box-open"></i>
-        <p>No orders yet. Start shopping to see your order history here.</p>
+        <p>Your future favourites will appear here after checkout.</p>
       </div>
     `;
     return;
   }
 
-  elements.ordersList.innerHTML = state.orders.map((order) => {
+  elements.ordersList.innerHTML = userOrders.map((order) => {
     const { id, items, totals, createdAt, payment, statusIndex } = order;
     const createdDate = new Date(createdAt);
     const orderItemsText = items.map((item) => `${item.quantity} x ${item.name}`).join(' | ');
     const statusLabel = ORDER_STATUSES[statusIndex] ?? ORDER_STATUSES[0];
+    const paymentMethodLabel = payment.method === 'cod'
+      ? 'Cash on Delivery'
+      : payment.method === 'upi-qr'
+        ? 'UPI QR'
+        : 'Razorpay';
 
     const timeline = ORDER_STATUSES.map((stage, index) => `
       <span class="timeline-step ${index <= statusIndex ? 'active' : ''}">
@@ -655,7 +1120,7 @@ function renderOrders() {
         <footer class="order-card__footer">
           <div>
             <strong>${utils.formatCurrency(totals.total)}</strong>
-            <p class="subtitle">Payment: ${payment.method === 'cod' ? 'Cash on Delivery' : 'Razorpay'} - ${payment.status}</p>
+            <p class="subtitle">Payment: ${paymentMethodLabel} - ${payment.status}</p>
           </div>
           <div class="timeline">${timeline}</div>
           <button class="btn btn--ghost" data-track-order data-order-id="${id}">
@@ -679,6 +1144,7 @@ function openTracking(orderId) {
       <div>
         <strong>${order.id}</strong>
         <p class="subtitle">${order.items.length} item(s) - ${utils.formatCurrency(order.totals.total)}</p>
+        <p class="subtitle">Payment: ${order.payment.method === 'cod' ? 'Cash on Delivery' : order.payment.method === 'upi-qr' ? 'UPI QR' : 'Razorpay'} ? ${order.payment.status}${order.payment.reference ? ` ? Ref: ${order.payment.reference}` : ''}</p>
       </div>
       <div class="tag">${ORDER_STATUSES[order.statusIndex] ?? ORDER_STATUSES[0]}</div>
     </div>

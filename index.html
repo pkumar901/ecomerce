@@ -24,6 +24,24 @@
         <li><a href="#my-orders">My Orders</a></li>
         <li><a href="#features">Why Us</a></li>
         <li><a href="#support">Support</a></li>
+        <li class="nav__account">
+          <button class="account-button" id="accountButton" aria-haspopup="true" aria-expanded="false">
+            <i class="fa-solid fa-user"></i>
+            <span id="accountLabel">Sign In</span>
+          </button>
+          <div class="account-menu" id="accountMenu" role="menu" aria-hidden="true">
+            <div class="account-menu__header">
+              <p id="accountGreeting">Welcome guest</p>
+              <small id="accountEmail"></small>
+            </div>
+            <button class="account-menu__item" id="accountOrders" role="menuitem" type="button">
+              <i class="fa-solid fa-box"></i> View My Orders
+            </button>
+            <button class="account-menu__item" id="accountLogout" role="menuitem" type="button">
+              <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
+            </button>
+          </div>
+        </li>
         <li>
           <button class="cart-button" id="openCart" aria-label="Open cart">
             <i class="fa-solid fa-bag-shopping"></i>
@@ -48,11 +66,11 @@
             <span>Express Dispatch</span>
           </li>
           <li>
-            <strong>4.8?</strong>
+            <strong>4.8/5</strong>
             <span>Customer Rating</span>
           </li>
           <li>
-            <strong>?0</strong>
+            <strong>&#8377;0</strong>
             <span>Free Returns</span>
           </li>
         </ul>
@@ -61,7 +79,7 @@
         <img src="https://images.pexels.com/photos/6311653/pexels-photo-6311653.jpeg" alt="Model wearing LuxeThreads outfit">
         <div class="floating-card" aria-hidden="true">
           <p>Powered by Razorpay</p>
-          <span>UPI ? Cards ? Wallets</span>
+          <span>UPI | Cards | Wallets</span>
         </div>
       </div>
     </div>
@@ -169,7 +187,7 @@
           </div>
         </div>
         <div class="support__info">
-          <p><i class="fa-solid fa-clock"></i> Live 7 days a week, 9am ? 10pm IST</p>
+          <p><i class="fa-solid fa-clock"></i> Live 7 days a week, 9am - 10pm IST</p>
           <p><i class="fa-solid fa-store"></i> Flagship: 64, Soho Lane, Bengaluru</p>
         </div>
       </div>
@@ -185,14 +203,15 @@
       <div class="footer__links">
         <a href="#catalog">Collections</a>
         <a href="#support">Concierge</a>
-        <a href="admin.html">Admin Login</a>
       </div>
       <div class="footer__legal">
-        <p>? <span id="year"></span> LuxeThreads. All rights reserved.</p>
+        <p>&#169; <span id="year"></span> LuxeThreads. All rights reserved.</p>
         <p>Made with <i class="fa-solid fa-heart"></i> in India.</p>
       </div>
     </div>
   </footer>
+
+  <a href="admin.html" id="ownerPortalLink" class="visually-hidden" tabindex="-1">Owner Portal</a>
 
   <aside class="cart" id="cartDrawer" aria-hidden="true">
     <div class="cart__header">
@@ -203,7 +222,7 @@
     <div class="cart__footer">
       <div class="cart__summary">
         <span>Subtotal</span>
-        <strong id="cartSubtotal">?0</strong>
+        <strong id="cartSubtotal">&#8377;0</strong>
       </div>
       <div class="cart__actions">
         <button class="btn btn--ghost" id="clearCart">Clear Cart</button>
@@ -250,14 +269,37 @@
             <img src="https://i.postimg.cc/63K4m8Bn/razorpay-logo.png" alt="Razorpay" />
           </label>
           <label class="payment-card">
+            <input type="radio" name="payment" value="upi-qr">
+            <span>
+              <strong>UPI QR Checkout</strong>
+              <small>Scan LuxeThreads UPI QR and enter transaction reference.</small>
+            </span>
+            <i class="fa-solid fa-qrcode"></i>
+          </label>
+          <label class="payment-card">
             <input type="radio" name="payment" value="cod">
             <span>
               <strong>Cash on Delivery</strong>
-              <small>Pay with cash or UPI on delivery. ?40 convenience fee.</small>
+              <small>Pay with cash or UPI on delivery. &#8377;40 convenience fee.</small>
             </span>
             <i class="fa-solid fa-people-carry-box"></i>
           </label>
         </fieldset>
+
+        <div id="upiQRSection" class="upi-qr" hidden>
+          <div class="upi-qr__left">
+            <h4>Scan & Pay</h4>
+            <p>Use any UPI app to scan the QR. UPI ID: <strong id="upiId">luxethreads@upi</strong></p>
+            <img id="upiQRCode" src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=upi://pay?pa=luxethreads@upi&pn=LuxeThreads&cu=INR" alt="LuxeThreads UPI QR code">
+          </div>
+          <div class="upi-qr__right">
+            <label>
+              UPI transaction reference
+              <input type="text" name="upiReference" id="upiReference" placeholder="Enter UTR / reference number">
+            </label>
+            <p class="hint">We will verify your payment instantly after you submit the reference.</p>
+          </div>
+        </div>
 
         <div class="modal__footer">
           <button type="button" class="btn btn--ghost" data-close-modal>Cancel</button>
@@ -274,6 +316,44 @@
         <button class="icon-button" data-close-modal aria-label="Close tracking"><i class="fa-solid fa-xmark"></i></button>
       </header>
       <div class="modal__body" id="trackingContent"></div>
+    </div>
+  </div>
+
+  <div class="modal" id="accountModal" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="modal__dialog" role="document">
+      <header class="modal__header">
+        <h3 id="authTitle">Sign in</h3>
+        <button class="icon-button" data-close-modal aria-label="Close account"><i class="fa-solid fa-xmark"></i></button>
+      </header>
+      <div class="modal__body account-modal__body">
+        <form id="authForm" class="auth-form" autocomplete="off">
+          <input type="hidden" name="mode" id="authMode" value="signin">
+          <div class="form-grid" id="authNameField" hidden>
+            <label class="full">
+              Full name
+              <input type="text" name="fullName" placeholder="Enter your name">
+            </label>
+          </div>
+          <div class="form-grid">
+            <label class="full">
+              Email
+              <input type="email" name="email" id="authEmail" required placeholder="you@example.com">
+            </label>
+            <label class="full">
+              Password
+              <input type="password" name="password" id="authPassword" required placeholder="********">
+            </label>
+          </div>
+          <div class="account-modal__footer">
+            <button type="submit" class="btn btn--primary" id="authSubmit">Continue</button>
+            <p class="auth-switch" id="authSwitch">
+              <span id="authSwitchLabel">New to LuxeThreads?</span>
+              <button type="button" id="toggleAuthMode">Create an account</button>
+            </p>
+            <p class="auth-error" id="authError" role="alert" aria-live="polite"></p>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 
