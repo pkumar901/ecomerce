@@ -135,6 +135,7 @@ const elements = {
   cartDrawer: document.getElementById('cartDrawer'),
   openCart: document.getElementById('openCart'),
   closeCart: document.getElementById('closeCart'),
+  payNowBtn: document.getElementById('payNowBtn'),
   cartItems: document.getElementById('cartItems'),
   cartSubtotal: document.getElementById('cartSubtotal'),
   clearCart: document.getElementById('clearCart'),
@@ -275,6 +276,8 @@ function bindEvents() {
   });
 
   document.addEventListener('keydown', handleOwnerShortcut);
+
+  elements.payNowBtn?.addEventListener('click', () => openCheckout());
 
   elements.productGrid?.addEventListener('click', (event) => {
     const button = event.target.closest('[data-add-to-cart]');
