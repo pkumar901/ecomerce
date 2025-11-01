@@ -1,7 +1,8 @@
 const STORAGE_KEYS = {
   products: 'luxethreads_products_v1',
   cart: 'luxethreads_cart_v1',
-  orders: 'luxethreads_orders_v1'
+  orders: 'luxethreads_orders_v1',
+  settings: 'luxethreads_settings_v1'
 };
 
 const ORDER_STATUSES = [
@@ -105,10 +106,20 @@ const DEFAULT_PRODUCTS = [
   }
 ];
 
+const TRACKING_CARRIERS = [
+  'Delhivery Premier',
+  'Blue Dart Priority',
+  'Ecom Express Elite',
+  'Shadowfax Luxe'
+];
+
+const OWNER_PORTAL_URL = 'admin.html#owner';
+
 const state = {
   products: [],
   cart: [],
   orders: [],
+  settings: null,
   filters: {
     category: 'all',
     sort: 'featured'
@@ -188,6 +199,32 @@ const utils = {
   }
 };
 
+function generateTrackingDetails() {
+  const now = Date.now();
+  const carrier = TRACKING_CARRIERS[Math.floor(Math.random() * TRACKING_CARRIERS.length)];
+  const trackingId = `LUX${Math.random().toString(36).slice(2, 8).toUpperCase()}${Date.now().toString().slice(-3)}`;
+  const offsetHours = [0, 3, 20, 44, 60];
+  const statusUpdates = {};
+  const eta = {};
+
+  ORDER_STATUSES.forEach((status, index) => {
+    const offset = offsetHours[index] ?? index * 18;
+    const timestamp = new Date(now + offset * 60 * 60 * 1000).toISOString();
+    eta[status] = timestamp;
+    statusUpdates[status] = index === 0 ? new Date(now).toISOString() : null;
+  });
+
+  return {
+    statusUpdates,
+    tracking: {
+      id: trackingId,
+      carrier,
+      estimatedDelivery: eta['Delivered'],
+      eta
+    }
+  };
+}
+
 function init() {
   hydrateState();
   bindEvents();
@@ -198,6 +235,7 @@ function hydrateState() {
   const storedProducts = utils.load(STORAGE_KEYS.products, DEFAULT_PRODUCTS);
   const storedCart = utils.load(STORAGE_KEYS.cart, []);
   const storedOrders = utils.load(STORAGE_KEYS.orders, []);
+  const storedSettings = utils.load(STORAGE_KEYS.settings, null);
 
   if (!storedProducts.length) {
     utils.save(STORAGE_KEYS.products, DEFAULT_PRODUCTS);
@@ -208,6 +246,7 @@ function hydrateState() {
 
   state.cart = storedCart;
   state.orders = storedOrders;
+  state.settings = storedSettings;
 
   if (elements.year) {
     elements.year.textContent = new Date().getFullYear();
@@ -234,6 +273,8 @@ function bindEvents() {
       closeAllModals();
     }
   });
+
+  document.addEventListener('keydown', handleOwnerShortcut);
 
   elements.productGrid?.addEventListener('click', (event) => {
     const button = event.target.closest('[data-add-to-cart]');
@@ -533,6 +574,7 @@ function handleCheckoutSubmit(event) {
   }
 
   const totals = calculateTotals(paymentMethod);
+  const trackingDetails = generateTrackingDetails();
   const orderPayload = {
     id: utils.randomId('ORD'),
     items: structuredClone(state.cart),
@@ -543,7 +585,9 @@ function handleCheckoutSubmit(event) {
       method: paymentMethod,
       status: paymentMethod === 'cod' ? 'Pending COD' : 'Pending Payment'
     },
-    statusIndex: 0
+    statusIndex: 0,
+    statusUpdates: trackingDetails.statusUpdates,
+    tracking: trackingDetails.tracking
   };
 
   if (paymentMethod === 'razorpay') {
@@ -563,8 +607,12 @@ function initiateRazorpay(orderPayload) {
 
   pendingCheckout = orderPayload;
 
+  const fallbackKey = 'rzp_test_1DP5mmOlF5G5ag';
+  const configuredKey = (state.settings?.razorpayLiveKey || state.settings?.razorpayTestKey || '').trim();
+  const razorpayKey = configuredKey || fallbackKey;
+
   const options = {
-    key: 'rzp_test_1DP5mmOlF5G5ag',
+    key: razorpayKey,
     amount: orderPayload.totals.total * 100,
     currency: 'INR',
     name: 'LuxeThreads',
@@ -579,6 +627,8 @@ function initiateRazorpay(orderPayload) {
         signature: response.razorpay_signature
       };
       pendingCheckout.statusIndex = 1;
+      pendingCheckout.statusUpdates = pendingCheckout.statusUpdates || {};
+      pendingCheckout.statusUpdates['Processing'] = new Date().toISOString();
       finalizeOrder(pendingCheckout);
       pendingCheckout = null;
       closeAllModals();
@@ -634,6 +684,9 @@ function renderOrders() {
     const createdDate = new Date(createdAt);
     const orderItemsText = items.map((item) => `${item.quantity} x ${item.name}`).join(' | ');
     const statusLabel = ORDER_STATUSES[statusIndex] ?? ORDER_STATUSES[0];
+    const etaText = order.tracking?.estimatedDelivery
+      ? `ETA ${new Date(order.tracking.estimatedDelivery).toLocaleDateString('en-IN', { dateStyle: 'medium' })}`
+      : '';
 
     const timeline = ORDER_STATUSES.map((stage, index) => `
       <span class="timeline-step ${index <= statusIndex ? 'active' : ''}">
@@ -648,6 +701,7 @@ function renderOrders() {
           <div>
             <h3>Order ${id}</h3>
             <span>Placed on ${createdDate.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+            ${etaText ? `<p class="hint">${etaText}</p>` : ''}
           </div>
           <div class="tag"><i class="fa-solid fa-truck-fast"></i> ${statusLabel}</div>
         </header>
@@ -674,6 +728,12 @@ function openTracking(orderId) {
     return;
   }
 
+  const carrierInfo = order.tracking?.carrier || 'To be assigned';
+  const trackingId = order.tracking?.id || 'Pending generation';
+  const etaDelivery = order.tracking?.estimatedDelivery
+    ? new Date(order.tracking.estimatedDelivery).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
+    : 'TBD';
+
   const header = `
     <div class="tracking-header">
       <div>
@@ -682,17 +742,36 @@ function openTracking(orderId) {
       </div>
       <div class="tag">${ORDER_STATUSES[order.statusIndex] ?? ORDER_STATUSES[0]}</div>
     </div>
+    <div class="tracking-meta">
+      <div>
+        <span>Carrier</span>
+        <strong>${carrierInfo}</strong>
+      </div>
+      <div>
+        <span>Tracking ID</span>
+        <strong>${trackingId}</strong>
+      </div>
+      <div>
+        <span>Est. Delivery</span>
+        <strong>${etaDelivery}</strong>
+      </div>
+    </div>
   `;
 
   const timeline = ORDER_STATUSES.map((stage, index) => {
     const isActive = index <= order.statusIndex;
-    const date = index === 0 ? order.createdAt : order.statusUpdates?.[stage];
+    const actualDate = index === 0 ? order.createdAt : order.statusUpdates?.[stage];
+    const etaDate = order.tracking?.eta?.[stage];
     return `
       <div class="tracking-line">
         <span class="tracking-point ${isActive ? 'active' : ''}">${isActive ? '<i class="fa-solid fa-check"></i>' : ''}</span>
         <div>
           <p class="tracking-status">${stage}</p>
-          <p class="tracking-date">${date ? new Date(date).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'Pending update'}</p>
+          <p class="tracking-date">${actualDate
+      ? new Date(actualDate).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
+      : etaDate
+        ? `ETA ${new Date(etaDate).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}`
+        : 'Pending update'}</p>
         </div>
       </div>
     `;
@@ -700,6 +779,18 @@ function openTracking(orderId) {
 
   elements.trackingContent.innerHTML = `${header}<div class="tracking-timeline">${timeline}</div>`;
   utils.openElement(elements.trackingModal);
+}
+
+function handleOwnerShortcut(event) {
+  if (event.repeat) return;
+  if (!event.altKey || !event.shiftKey || event.code !== 'KeyL') return;
+  const targetTag = event.target?.tagName;
+  if (targetTag && ['INPUT', 'TEXTAREA'].includes(targetTag)) return;
+  event.preventDefault();
+  utils.showToast('Redirecting to owner portal...', 'info');
+  setTimeout(() => {
+    window.location.href = OWNER_PORTAL_URL;
+  }, 300);
 }
 
 document.addEventListener('click', (event) => {
