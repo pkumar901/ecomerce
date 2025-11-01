@@ -1,7 +1,13 @@
 const STORAGE_KEYS = {
   products: 'luxethreads_products_v1',
   cart: 'luxethreads_cart_v1',
-  orders: 'luxethreads_orders_v1'
+  orders: 'luxethreads_orders_v1',
+  settings: 'luxethreads_settings_v1'
+};
+
+const DEFAULT_SETTINGS = {
+  razorpayTestKey: 'rzp_test_1DP5mmOlF5G5ag',
+  razorpayLiveKey: ''
 };
 
 const ORDER_STATUSES = [
@@ -109,6 +115,7 @@ const state = {
   products: [],
   cart: [],
   orders: [],
+  settings: structuredClone(DEFAULT_SETTINGS),
   filters: {
     category: 'all',
     sort: 'featured'
@@ -198,6 +205,7 @@ function hydrateState() {
   const storedProducts = utils.load(STORAGE_KEYS.products, DEFAULT_PRODUCTS);
   const storedCart = utils.load(STORAGE_KEYS.cart, []);
   const storedOrders = utils.load(STORAGE_KEYS.orders, []);
+  const storedSettings = utils.load(STORAGE_KEYS.settings, DEFAULT_SETTINGS);
 
   if (!storedProducts.length) {
     utils.save(STORAGE_KEYS.products, DEFAULT_PRODUCTS);
@@ -208,6 +216,10 @@ function hydrateState() {
 
   state.cart = storedCart;
   state.orders = storedOrders;
+  state.settings = {
+    ...structuredClone(DEFAULT_SETTINGS),
+    ...storedSettings
+  };
 
   if (elements.year) {
     elements.year.textContent = new Date().getFullYear();
@@ -307,6 +319,12 @@ function bindEvents() {
     if (event.key === STORAGE_KEYS.orders) {
       state.orders = utils.load(STORAGE_KEYS.orders, []);
       renderOrders();
+    }
+    if (event.key === STORAGE_KEYS.settings) {
+      state.settings = {
+        ...structuredClone(DEFAULT_SETTINGS),
+        ...utils.load(STORAGE_KEYS.settings, DEFAULT_SETTINGS)
+      };
     }
   });
 }
@@ -563,8 +581,14 @@ function initiateRazorpay(orderPayload) {
 
   pendingCheckout = orderPayload;
 
+  const razorpayKey = resolveRazorpayKey();
+  if (!razorpayKey) {
+    utils.showToast('Razorpay configuration missing. Please contact support.', 'error');
+    return;
+  }
+
   const options = {
-    key: 'rzp_test_1DP5mmOlF5G5ag',
+    key: razorpayKey,
     amount: orderPayload.totals.total * 100,
     currency: 'INR',
     name: 'LuxeThreads',
@@ -603,6 +627,20 @@ function initiateRazorpay(orderPayload) {
     utils.showToast('Payment unsuccessful. Please try again.', 'error');
   });
   rzp.open();
+}
+
+function resolveRazorpayKey() {
+  const settings = state.settings || DEFAULT_SETTINGS;
+  const trimmedTest = settings.razorpayTestKey?.trim();
+  const trimmedLive = settings.razorpayLiveKey?.trim();
+  const hostname = window?.location?.hostname || '';
+  const isLocalhost = ['localhost', '127.0.0.1', ''].includes(hostname);
+
+  if (!isLocalhost && trimmedLive) {
+    return trimmedLive;
+  }
+
+  return trimmedTest || DEFAULT_SETTINGS.razorpayTestKey;
 }
 
 function finalizeOrder(orderPayload) {
